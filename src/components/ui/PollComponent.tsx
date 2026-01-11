@@ -7,6 +7,7 @@ export interface PollComponentProps {
   question: ClarificationQuestion;
   onAnswer: (answer: string | string[]) => void;
   disabled?: boolean;
+  initialAnswer?: string | string[];
 }
 
 const SingleOption = memo(function SingleOption({
@@ -163,12 +164,20 @@ export const PollComponent = memo(function PollComponent({
   question,
   onAnswer,
   disabled = false,
+  initialAnswer,
 }: PollComponentProps) {
-  const [selectedSingle, setSelectedSingle] = useState<string | null>(null);
-  const [selectedMulti, setSelectedMulti] = useState<Set<string>>(new Set());
-  const [customInput, setCustomInput] = useState("");
+  // Initialize state from initialAnswer if provided
+  const [selectedSingle, setSelectedSingle] = useState<string | null>(
+    typeof initialAnswer === "string" ? initialAnswer : null
+  );
+  const [selectedMulti, setSelectedMulti] = useState<Set<string>>(
+    Array.isArray(initialAnswer) ? new Set(initialAnswer) : new Set()
+  );
+  const [customInput, setCustomInput] = useState(
+    question.type === "text" && typeof initialAnswer === "string" ? initialAnswer : ""
+  );
   const [customOptions, setCustomOptions] = useState<string[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(!!initialAnswer);
 
   const allOptions = [...(question.options || []), ...customOptions];
 
@@ -319,15 +328,24 @@ export const PollComponent = memo(function PollComponent({
         </button>
       )}
 
-      {/* Submitted state */}
+      {/* Submitted state - show the answer */}
       {submitted && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
-          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
+            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-green-700">Your answer:</span>
+              <p className="text-sm text-green-800 mt-0.5">
+                {question.type === "single" && selectedSingle}
+                {question.type === "multi" && Array.from(selectedMulti).join(", ")}
+                {question.type === "text" && customInput}
+              </p>
+            </div>
           </div>
-          <span className="text-sm font-medium text-green-700">Answer submitted</span>
         </div>
       )}
     </div>

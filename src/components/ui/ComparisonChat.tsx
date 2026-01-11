@@ -341,20 +341,35 @@ const QueryInput = memo(function QueryInput({
  */
 const ClarificationSection = memo(function ClarificationSection({
   questions,
+  answers,
   onAnswer,
 }: {
   questions: ClarificationQuestion[];
+  answers: Record<string, string | string[]>;
   onAnswer: (questionId: string, answer: string | string[]) => void;
 }) {
+  const answeredCount = Object.keys(answers).length;
+  const totalCount = questions.length;
+
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-2 text-stone-600">
+      <div className="flex items-center justify-between text-stone-600">
         <p className="text-sm font-mono uppercase tracking-wider">
           [Clarification Needed]
         </p>
+        {answeredCount > 0 && (
+          <p className="text-xs font-mono text-amber-600">
+            {answeredCount}/{totalCount} answered
+          </p>
+        )}
       </div>
       {questions.map((q) => (
-        <PollComponent key={q.id} question={q} onAnswer={(answer) => onAnswer(q.id, answer)} />
+        <PollComponent 
+          key={q.id} 
+          question={q} 
+          onAnswer={(answer) => onAnswer(q.id, answer)}
+          initialAnswer={answers[q.id]}
+        />
       ))}
     </div>
   );
@@ -586,7 +601,7 @@ export const ComparisonChat = memo(function ComparisonChat({
 }: ComparisonChatProps) {
   // Stores
   const { geminiApiKey, exaApiKey, maxParallelism } = useSettingsStore();
-  const { createSession, updateSession, getSession, setCurrentSession } = useSessionStore();
+  const { createSession, updateSession, getSession, setCurrentSession, addTranscriptEntry, completeTranscript } = useSessionStore();
 
   // Local state
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null);
@@ -772,10 +787,21 @@ export const ComparisonChat = memo(function ComparisonChat({
     setIsLoading(false);
     
     if (sessionId) {
+      // Record error in transcript
+      addTranscriptEntry(sessionId, {
+        type: "error",
+        content: apiError.error,
+        metadata: {
+          code: apiError.code,
+          context,
+          details: apiError.details,
+          retryable: apiError.retryable,
+        },
+      });
       const { markSessionError } = useSessionStore.getState();
       markSessionError(sessionId, apiError.error);
     }
-  }, [sessionId]);
+  }, [sessionId, addTranscriptEntry]);
 
 
   const callPlanner = useCallback(async (query: string, clarificationAnswers?: Record<string, string | string[]>) => {
@@ -810,6 +836,22 @@ export const ComparisonChat = memo(function ComparisonChat({
           content: "I need some clarification to create a better comparison.",
           phase: "clarifying",
         });
+        
+        // Record clarification questions in transcript
+        if (sessionId) {
+          data.clarifications.forEach((q: ClarificationQuestion) => {
+            addTranscriptEntry(sessionId, {
+              type: "clarification_question",
+              content: q.question,
+              metadata: {
+                questionId: q.id,
+                questionType: q.type,
+                options: q.options,
+                allowCustom: q.allowCustom,
+              },
+            });
+          });
+        }
       } else if (data.plan) {
         setPlan(data.plan);
         setCompletedStages(prev => new Set([...prev, "planning"]));
@@ -817,6 +859,23 @@ export const ComparisonChat = memo(function ComparisonChat({
           ...prev,
           planning: `Comparing **${data.plan.options.join("**, **")}** across ${data.plan.axes.length} dimensions:\n\n${data.plan.axes.map((a: { name: string; description: string }) => `- **${a.name}**: ${a.description}`).join("\n")}`,
         }));
+        
+        // Record planning result in transcript
+        if (sessionId) {
+          addTranscriptEntry(sessionId, {
+            type: "planning_result",
+            content: `Comparison plan created for: ${data.plan.options.join(", ")}`,
+            metadata: {
+              options: data.plan.options,
+              axes: data.plan.axes.map((a: { name: string; description: string; weight: number }) => ({
+                name: a.name,
+                description: a.description,
+                weight: a.weight,
+              })),
+              constraints: data.plan.constraints,
+            },
+          });
+        }
         
         if (sessionId) {
           updateSession(sessionId, { plan: data.plan, status: "advocating" });
@@ -834,7 +893,7 @@ export const ComparisonChat = memo(function ComparisonChat({
       setIsLoading(false);
       isStreamingRef.current = false;
     }
-  }, [geminiApiKey, exaApiKey, sessionId, addMessage, updateSession, handleError]);
+  }, [geminiApiKey, exaApiKey, sessionId, addMessage, updateSession, addTranscriptEntry, handleError]);
 
   const runAdvocates = useCallback(async (comparisonPlan: ComparisonPlan) => {
     setPhase("advocating");
@@ -929,12 +988,25 @@ export const ComparisonChat = memo(function ComparisonChat({
     setCompletedStages(prev => new Set([...prev, "advocating"]));
     setStageContent(prev => ({ ...prev, advocating: responses }));
     
+    // Record advocate arguments in transcript
     if (sessionId) {
+      responses.forEach((response) => {
+        addTranscriptEntry(sessionId, {
+          type: "advocate_argument",
+          content: response.argument,
+          metadata: {
+            option: response.option,
+            sources: response.sources,
+            weaknesses: response.weaknesses,
+            hasError: !!response.error,
+          },
+        });
+      });
       updateSession(sessionId, { arguments: responses });
     }
 
     await runCrossExaminers(comparisonPlan, responses);
-  }, [sessionId, maxParallelism, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, scrollToBottom]);
+  }, [sessionId, maxParallelism, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, addTranscriptEntry, scrollToBottom]);
 
   const runCrossExaminers = useCallback(async (
     comparisonPlan: ComparisonPlan,
@@ -1031,12 +1103,24 @@ export const ComparisonChat = memo(function ComparisonChat({
     setCompletedStages(prev => new Set([...prev, "cross-examining"]));
     setStageContent(prev => ({ ...prev, "cross-examining": responses }));
     
+    // Record cross-examinations in transcript
     if (sessionId) {
+      responses.forEach((response) => {
+        addTranscriptEntry(sessionId, {
+          type: "cross_examination",
+          content: response.defense,
+          metadata: {
+            option: response.option,
+            challenges: response.challenges,
+            hasError: !!response.error,
+          },
+        });
+      });
       updateSession(sessionId, { crossExaminations: responses });
     }
 
     await runReferee(comparisonPlan, advocateArgs, responses);
-  }, [sessionId, maxParallelism, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, scrollToBottom]);
+  }, [sessionId, maxParallelism, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, addTranscriptEntry, scrollToBottom]);
 
 
   const runReferee = useCallback(async (
@@ -1114,7 +1198,19 @@ export const ComparisonChat = memo(function ComparisonChat({
       setPhase("complete");
       isStreamingRef.current = false;
       
+      // Record referee verdict and complete transcript
       if (sessionId) {
+        addTranscriptEntry(sessionId, {
+          type: "referee_verdict",
+          content: fullContent,
+          metadata: {
+            recommendation: result.recommendation,
+            scores: result.scores,
+            tradeoffs: result.tradeoffs,
+            caveats: result.caveats,
+          },
+        });
+        completeTranscript(sessionId);
         updateSession(sessionId, { result, status: "complete" });
       }
     } catch (err) {
@@ -1123,7 +1219,7 @@ export const ComparisonChat = memo(function ComparisonChat({
       setIsLoading(false);
       isStreamingRef.current = false;
     }
-  }, [sessionId, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, handleError, scrollToBottom]);
+  }, [sessionId, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, addTranscriptEntry, completeTranscript, handleError, scrollToBottom]);
 
   const handleQuerySubmit = useCallback(async (query: string) => {
     const newSessionId = createSession(query);
@@ -1157,6 +1253,20 @@ export const ComparisonChat = memo(function ComparisonChat({
     const newAnswers = { ...clarificationAnswers, [questionId]: answer };
     setClarificationAnswers(newAnswers);
 
+    // Record clarification answer in transcript
+    if (sessionId) {
+      const question = clarifications.find((q) => q.id === questionId);
+      addTranscriptEntry(sessionId, {
+        type: "clarification_answer",
+        content: Array.isArray(answer) ? answer.join(", ") : answer,
+        metadata: {
+          questionId,
+          question: question?.question,
+          answerType: Array.isArray(answer) ? "multi" : "single",
+        },
+      });
+    }
+
     const allAnswered = clarifications.every((q) => newAnswers[q.id] !== undefined);
     
     if (allAnswered) {
@@ -1164,7 +1274,7 @@ export const ComparisonChat = memo(function ComparisonChat({
       const query = session?.query || messages.find((m) => m.role === "user")?.content || "";
       await callPlanner(query, newAnswers);
     }
-  }, [clarificationAnswers, clarifications, sessionId, getSession, messages, callPlanner]);
+  }, [clarificationAnswers, clarifications, sessionId, getSession, messages, callPlanner, addTranscriptEntry]);
 
   const handleRetry = useCallback(() => {
     const session = sessionId ? getSession(sessionId) : null;
@@ -1246,6 +1356,7 @@ export const ComparisonChat = memo(function ComparisonChat({
           {phase === "clarifying" && clarifications.length > 0 && (
             <ClarificationSection
               questions={clarifications}
+              answers={clarificationAnswers}
               onAnswer={handleClarificationAnswer}
             />
           )}

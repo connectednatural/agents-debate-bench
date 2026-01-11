@@ -184,6 +184,36 @@ export const RefereeResponseSchema = z.object({
 
 export type RefereeResponse = z.infer<typeof RefereeResponseSchema>;
 
+// Transcript entry for storing conversation history
+export const TranscriptEntrySchema = z.object({
+  id: z.string(),
+  timestamp: z.coerce.date(),
+  type: z.enum([
+    "user_query",
+    "clarification_question",
+    "clarification_answer",
+    "planning_result",
+    "advocate_argument",
+    "cross_examination",
+    "referee_verdict",
+    "system_message",
+    "error",
+  ]),
+  content: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type TranscriptEntry = z.infer<typeof TranscriptEntrySchema>;
+
+// Full transcript of a comparison session
+export const TranscriptSchema = z.object({
+  entries: z.array(TranscriptEntrySchema),
+  startedAt: z.coerce.date(),
+  completedAt: z.coerce.date().optional(),
+});
+
+export type Transcript = z.infer<typeof TranscriptSchema>;
+
 // Comparison session
 export const ComparisonSessionSchema = z.object({
   id: z.string(),
@@ -194,6 +224,7 @@ export const ComparisonSessionSchema = z.object({
   arguments: z.array(AdvocateResponseSchema).optional(),
   crossExaminations: z.array(CrossExamineResponseSchema).optional(),
   result: RefereeResponseSchema.optional(),
+  transcript: TranscriptSchema.optional(),
   error: z.string().optional(),
 });
 

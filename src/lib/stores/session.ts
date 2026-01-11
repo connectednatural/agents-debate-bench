@@ -5,7 +5,7 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ComparisonSession, SessionStatus } from "@/lib/types/schemas";
+import type { ComparisonSession, SessionStatus, Transcript, TranscriptEntry } from "@/lib/types/schemas";
 
 /**
  * Phases that can be completed before an error
@@ -44,6 +44,21 @@ interface SessionState {
    * Check if a session has partial results
    */
   hasPartialResults: (id: string) => boolean;
+
+  /**
+   * Add a transcript entry to a session
+   */
+  addTranscriptEntry: (id: string, entry: Omit<TranscriptEntry, "id" | "timestamp">) => void;
+
+  /**
+   * Get the transcript for a session
+   */
+  getTranscript: (id: string) => Transcript | undefined;
+
+  /**
+   * Mark transcript as complete
+   */
+  completeTranscript: (id: string) => void;
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -54,12 +69,22 @@ export const useSessionStore = create<SessionState>()(
 
       createSession: (query: string) => {
         const id = crypto.randomUUID();
+        const now = new Date();
         const session: PartialSession = {
           id,
           query,
-          createdAt: new Date(),
+          createdAt: now,
           status: "pending",
           completedPhases: [],
+          transcript: {
+            entries: [{
+              id: crypto.randomUUID(),
+              timestamp: now,
+              type: "user_query",
+              content: query,
+            }],
+            startedAt: now,
+          },
         };
         set((state) => ({
           sessions: [session, ...state.sessions],
@@ -132,6 +157,60 @@ export const useSessionStore = create<SessionState>()(
           (session.arguments && session.arguments.length > 0) ||
           (session.crossExaminations && session.crossExaminations.length > 0)
         );
+      },
+
+      addTranscriptEntry: (id: string, entry: Omit<TranscriptEntry, "id" | "timestamp">) => {
+        const session = get().getSession(id);
+        if (!session) return;
+
+        const newEntry: TranscriptEntry = {
+          ...entry,
+          id: crypto.randomUUID(),
+          timestamp: new Date(),
+        };
+
+        const currentTranscript = session.transcript || {
+          entries: [],
+          startedAt: session.createdAt,
+        };
+
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  transcript: {
+                    ...currentTranscript,
+                    entries: [...currentTranscript.entries, newEntry],
+                  },
+                }
+              : s
+          ),
+        }));
+      },
+
+      getTranscript: (id: string) => {
+        const session = get().getSession(id);
+        return session?.transcript;
+      },
+
+      completeTranscript: (id: string) => {
+        const session = get().getSession(id);
+        if (!session?.transcript) return;
+
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id && s.transcript
+              ? {
+                  ...s,
+                  transcript: {
+                    ...s.transcript,
+                    completedAt: new Date(),
+                  },
+                }
+              : s
+          ),
+        }));
       },
     }),
     {
