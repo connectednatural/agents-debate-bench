@@ -80,8 +80,8 @@ const FeatureItem = ({
   );
 };
 
-// Step Card Component
-const StepCard = ({ 
+// Compact Step Component
+const CompactStep = ({ 
   number, 
   icon: Icon,
   title, 
@@ -97,40 +97,46 @@ const StepCard = ({
   index: number;
 }) => {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 50 }}
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-10%" }}
-      transition={{ duration: 0.8, delay: index * 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className="group cursor-pointer flex flex-col gap-6"
+      viewport={{ once: true }}
+      transition={{ duration: 0.6, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative"
     >
-      <div className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl bg-stone-100">
-        <div
-          className="absolute inset-0 transition-transform duration-700 ease-[0.22,1,0.36,1] group-hover:scale-105 flex items-center justify-center"
-          style={{ backgroundColor: `${accentColor}15` }}
-        >
-          <div className="w-[120%] h-[120%] bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.8),transparent_70%)] opacity-30 absolute" />
-          <div
-            className="absolute w-64 h-64 rounded-full blur-[80px] opacity-50"
-            style={{ backgroundColor: accentColor }}
-          />
-          <Icon className="w-24 h-24 relative z-10" style={{ color: accentColor }} strokeWidth={1} />
+      {/* Connector line for non-last items */}
+      {index < 3 && (
+        <div className="hidden md:block absolute top-7 left-[calc(100%+1rem)] w-8 border-t border-dashed border-stone-300" />
+      )}
+      
+      <div className="flex flex-col items-center text-center">
+        {/* Number badge */}
+        <div className="relative mb-6">
+          <div 
+            className="w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all duration-300 group-hover:scale-110"
+            style={{ 
+              borderColor: accentColor,
+              backgroundColor: `${accentColor}10`
+            }}
+          >
+            <Icon className="w-6 h-6" style={{ color: accentColor }} strokeWidth={1.5} />
+          </div>
+          <span 
+            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-stone-900 text-white text-xs font-mono flex items-center justify-center"
+          >
+            {number}
+          </span>
         </div>
-
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
-
-        <div className="absolute top-6 left-6">
-          <span className="text-6xl font-serif font-light" style={{ color: accentColor }}>{number}</span>
-        </div>
+        
+        {/* Content */}
+        <h3 className="text-xl font-serif font-medium text-stone-900 mb-2 group-hover:text-amber-700 transition-colors">
+          {title}
+        </h3>
+        <p className="text-sm text-stone-500 leading-relaxed max-w-[200px]">
+          {description}
+        </p>
       </div>
-
-      <div className="flex justify-between items-start border-t border-stone-200 pt-5">
-        <div>
-          <h3 className="text-3xl font-serif font-medium text-stone-900 mb-2">{title}</h3>
-          <p className="text-base text-stone-500 leading-relaxed max-w-sm">{description}</p>
-        </div>
-      </div>
-    </motion.article>
+    </motion.div>
   );
 };
 
@@ -331,23 +337,53 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works Section - Project Grid Style */}
-      <section id="how-it-works" className="relative z-20 py-20 px-6 md:px-12 max-w-[100rem] mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-20 border-b border-stone-200 pb-8">
-          <h2 className="font-serif text-6xl md:text-8xl text-stone-900">
-            How It<br/><span className="italic text-stone-400">Works</span>
-          </h2>
-          <span className="hidden md:block font-mono text-sm text-stone-500 uppercase tracking-widest mb-4">
-            [ 4 Step Process ]
-          </span>
-        </div>
+      {/* How It Works Section - Elegant Horizontal Flow */}
+      <section id="how-it-works" className="relative z-20 py-24 md:py-32 px-6 md:px-12">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-16">
+            <motion.span
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-block font-mono text-xs text-amber-700 uppercase tracking-[0.2em] mb-4"
+            >
+              [ The Process ]
+            </motion.span>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="font-serif text-4xl md:text-5xl text-stone-900"
+            >
+              How It <span className="italic text-amber-700">Works</span>
+            </motion.h2>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-24 md:gap-y-32">
-          {steps.map((step, index) => (
-            <div key={step.number} className={index % 2 !== 0 ? "md:mt-24" : ""}>
-              <StepCard {...step} index={index} />
-            </div>
-          ))}
+          {/* Steps - Horizontal on desktop, vertical on mobile */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
+            {steps.map((step, index) => (
+              <CompactStep key={step.number} {...step} index={index} />
+            ))}
+          </div>
+
+          {/* Bottom CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+            className="text-center mt-16"
+          >
+            <Link 
+              href="/bench" 
+              className="inline-flex items-center gap-2 text-sm font-mono uppercase tracking-widest text-stone-600 hover:text-amber-700 transition-colors border-b border-stone-300 hover:border-amber-700 pb-1"
+            >
+              Start Your Comparison
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </motion.div>
         </div>
       </section>
 
