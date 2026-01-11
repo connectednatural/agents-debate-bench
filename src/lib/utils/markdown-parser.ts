@@ -51,8 +51,8 @@ const TABLE_PATTERN = /_Table\{([^}]+)\}/g;
 const POLL_PATTERN = /_Poll\{([^}]+)\}/g;
 const SCORE_PATTERN = /_Score\{([^}]+)\}/g;
 
-// Regex pattern for standard markdown tables
-const MARKDOWN_TABLE_PATTERN = /^\|(.+)\|[\r\n]+\|[\s:|-]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/gm;
+// Regex pattern for standard markdown tables (requires header, separator, and at least one row with pipes)
+const MARKDOWN_TABLE_PATTERN = /^\s*\|?.+\|.+\r?\n\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*\r?\n(?:\s*\|?.+\|.+\r?\n?)+/gm;
 
 /**
  * Parse a _Table{col1:type,col2:type} syntax
@@ -85,58 +85,57 @@ export function parseTableKey(content: string): ParsedTableColumn[] {
  */
 export function parseMarkdownTable(tableStr: string): { columns: ParsedTableColumn[]; rows: Record<string, string | number>[] } {
   const lines = tableStr.trim().split(/[\r\n]+/).filter(line => line.trim());
-  
+
   if (lines.length < 2) {
     return { columns: [], rows: [] };
   }
 
+  const normalizeRow = (line: string): string[] => {
+    const trimmed = line.trim();
+    if (!trimmed) return [];
+    if (!trimmed.includes("|")) return [];
+    const hasLeading = trimmed.startsWith("|");
+    const hasTrailing = trimmed.endsWith("|");
+    let content = trimmed;
+    if (hasLeading) content = content.slice(1);
+    if (hasTrailing) content = content.slice(0, -1);
+    return content.split("|").map((cell) => cell.trim());
+  };
+
   // Parse header row
   const headerLine = lines[0];
-  const headers = headerLine
-    .split("|")
-    .map(h => h.trim())
-    .filter(h => h.length > 0);
+  const headers = normalizeRow(headerLine).filter((h) => h.length > 0);
 
-  // Create columns - infer type from first data row
-  const columns: ParsedTableColumn[] = headers.map(name => ({
+  // Create columns - default to string, infer number as we parse rows
+  const columns: ParsedTableColumn[] = headers.map((name) => ({
     name,
     type: "string" as TableColumnType,
   }));
 
   // Skip separator line (index 1) and parse data rows
   const rows: Record<string, string | number>[] = [];
-  
+
   for (let i = 2; i < lines.length; i++) {
     const line = lines[i];
-    if (!line.trim() || !line.includes("|")) continue;
-    
-    const cells = line
-      .split("|")
-      .map(c => c.trim())
-      .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1 || arr.length === headers.length + 2 ? idx > 0 && idx <= headers.length : true)
-      .slice(0, headers.length);
+    if (!line.trim()) continue;
 
-    // Handle edge case where split creates empty first/last elements
-    const cleanCells = line.split("|").slice(1, -1).map(c => c.trim());
-    
-    if (cleanCells.length > 0) {
-      const row: Record<string, string | number> = {};
-      headers.forEach((header, idx) => {
-        const cellValue = cleanCells[idx] || "";
-        // Try to parse as number
-        const numValue = parseFloat(cellValue);
-        if (!isNaN(numValue) && cellValue.match(/^-?\d+\.?\d*$/)) {
-          row[header] = numValue;
-          // Update column type if we find a number
-          if (columns[idx]) {
-            columns[idx].type = "number";
-          }
-        } else {
-          row[header] = cellValue;
+    const cells = normalizeRow(line);
+    if (cells.length === 0) continue;
+
+    const row: Record<string, string | number> = {};
+    headers.forEach((header, idx) => {
+      const cellValue = cells[idx] ?? "";
+      const numValue = parseFloat(cellValue);
+      if (!isNaN(numValue) && cellValue.match(/^-?\d+\.?\d*$/)) {
+        row[header] = numValue;
+        if (columns[idx]) {
+          columns[idx].type = "number";
         }
-      });
-      rows.push(row);
-    }
+      } else {
+        row[header] = cellValue;
+      }
+    });
+    rows.push(row);
   }
 
   return { columns, rows };
@@ -261,7 +260,9 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
   // Build blocks array with text segments between custom keys
   let lastEnd = 0;
 
-  for (const m of filteredMatches) {
+  for (let i = 0; i < filteredMatches.length; i++) {
+    const m = filteredMatches[i];
+
     // Add text block before this match if there's content
     if (m.start > lastEnd) {
       const textContent = markdown.slice(lastEnd, m.start);
@@ -270,17 +271,70 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
       }
     }
 
-    // Add the parsed custom key block
-    switch (m.type) {
-      case "table":
+    // Merge _Table with immediately following markdown table (if present)
+    if (m.type === "table") {
+      const next = filteredMatches[i + 1];
+      const between = markdown.slice(m.end, next?.start ?? m.end);
+      const isNextMdTable = next?.type === "md-table" && between.trim() === "";
+
+      if (isNextMdTable && next) {
+        const typedColumns = parseTableKey(m.content);
+        const { columns: mdColumns, rows: mdRows } = parseMarkdownTable(next.content);
+
+        if (mdRows.length === 0 || mdColumns.length === 0) {
+          blocks.push({
+            type: "table",
+            columns: typedColumns,
+            rows: [],
+            raw: m.raw,
+          });
+          lastEnd = m.end;
+          continue;
+        }
+
+        const mergedColumns = typedColumns.map((col, idx) => ({
+          ...col,
+          name: mdColumns[idx]?.name ?? col.name,
+        }));
+
+        const mergedRows = mdRows.map((row) => {
+          const mergedRow: Record<string, string | number> = {};
+          mergedColumns.forEach((col, idx) => {
+            if (mdColumns[idx] && row[mdColumns[idx].name] !== undefined) {
+              mergedRow[col.name] = row[mdColumns[idx].name];
+            } else if (row[col.name] !== undefined) {
+              mergedRow[col.name] = row[col.name];
+            } else {
+              mergedRow[col.name] = "";
+            }
+          });
+          return mergedRow;
+        });
+
         blocks.push({
           type: "table",
-          columns: parseTableKey(m.content),
-          rows: [],
-          raw: m.raw,
+          columns: mergedColumns,
+          rows: mergedRows,
+          raw: m.raw + "\n" + next.raw,
         });
-        break;
-      case "md-table":
+
+        lastEnd = next.end;
+        i += 1;
+        continue;
+      }
+
+      blocks.push({
+        type: "table",
+        columns: parseTableKey(m.content),
+        rows: [],
+        raw: m.raw,
+      });
+      lastEnd = m.end;
+      continue;
+    }
+
+    switch (m.type) {
+      case "md-table": {
         const { columns, rows } = parseMarkdownTable(m.content);
         blocks.push({
           type: "table",
@@ -289,6 +343,7 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
           raw: m.raw,
         });
         break;
+      }
       case "poll":
         blocks.push({
           type: "poll",
@@ -296,7 +351,7 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
           raw: m.raw,
         });
         break;
-      case "score":
+      case "score": {
         const { axis, scores } = parseScoreKey(m.content);
         blocks.push({
           type: "score",
@@ -305,6 +360,7 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
           raw: m.raw,
         });
         break;
+      }
     }
 
     lastEnd = m.end;

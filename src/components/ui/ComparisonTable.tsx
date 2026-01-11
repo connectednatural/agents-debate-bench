@@ -168,9 +168,6 @@ export const ComparisonTable = memo(function ComparisonTable({
                   >
                     <div className="flex items-center gap-1.5">
                       {column.name}
-                      <span className="text-stone-400 lowercase text-[10px]">
-                        {column.type}
-                      </span>
                     </div>
                   </th>
                 ))}
