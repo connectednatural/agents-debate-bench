@@ -123,14 +123,17 @@ export async function withRetry<T>(
       // Check if we should retry
       const shouldRetry = attempt < maxRetries && isRetryable(error);
 
-      if (shouldRetry) {
-        const delay = calculateDelay(attempt, baseDelay, maxDelay, backoffMultiplier);
-        
-        // Call onRetry callback if provided
-        onRetry?.(lastError, attempt + 1, delay);
-        
-        await sleep(delay);
+      if (!shouldRetry) {
+        // Not retryable or max retries reached, throw immediately
+        throw lastError;
       }
+
+      const delay = calculateDelay(attempt, baseDelay, maxDelay, backoffMultiplier);
+      
+      // Call onRetry callback if provided
+      onRetry?.(lastError, attempt + 1, delay);
+      
+      await sleep(delay);
     }
   }
 
