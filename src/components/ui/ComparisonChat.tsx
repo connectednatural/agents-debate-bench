@@ -284,7 +284,7 @@ const QueryInput = memo(function QueryInput({
   }, [value]);
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
+    <form onSubmit={handleSubmit} className="relative focus-ring-reset">
       <div 
         className={`
           relative flex items-end gap-2 rounded-2xl border-2 transition-all duration-300 ease-out
@@ -307,7 +307,7 @@ const QueryInput = memo(function QueryInput({
           rows={1}
           className={`
             flex-1 px-4 py-3.5 bg-transparent text-stone-900 text-sm resize-none font-sans
-            focus:outline-none placeholder:text-stone-400
+            focus:outline-none focus-visible:outline-none focus-visible:shadow-none placeholder:text-stone-400
             min-h-[52px] max-h-[150px]
             ${disabled ? "cursor-not-allowed" : ""}
           `}
