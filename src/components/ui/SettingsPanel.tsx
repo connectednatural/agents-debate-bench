@@ -259,7 +259,7 @@ export const SettingsPanel = memo(function SettingsPanel({
               value={localExaKey}
               onChange={setLocalExaKey}
               placeholder="exa-..."
-              description="Get your key from exa.ai (optional, enables web search)"
+              description="Get your key from exa.ai (required, enables web search)"
             />
           </div>
 
