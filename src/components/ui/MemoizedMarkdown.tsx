@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useMemo, Suspense, lazy } from "react";
+import React, { memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   parseMarkdownCustomKeys,
@@ -9,9 +9,7 @@ import {
   ParsedPoll,
   ParsedScore,
 } from "@/lib/utils/markdown-parser";
-import type { ClarificationQuestion } from "@/lib/types";
 
-// Direct imports for the custom components
 import { ComparisonTable } from "./ComparisonTable";
 import { PollComponent } from "./PollComponent";
 import { ScoreChart } from "./ScoreChart";
@@ -23,118 +21,125 @@ interface MemoizedMarkdownProps {
   tableData?: Record<string, unknown>[];
 }
 
-/**
- * Renders a single text block as markdown
- */
 const MarkdownBlock = memo(function MarkdownBlock({
   content,
 }: {
   content: string;
 }) {
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none">
+    <div className="prose prose-stone prose-sm sm:prose-base max-w-none">
       <ReactMarkdown
         components={{
-          // Custom heading styles
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold mt-6 mb-4 text-foreground">
+            <h1 className="text-xl sm:text-2xl font-serif font-medium mt-6 mb-4 text-stone-900 border-b border-stone-200 pb-2">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-semibold mt-5 mb-3 text-foreground">
+            <h2 className="text-lg sm:text-xl font-serif font-medium mt-6 mb-3 text-stone-800 flex items-center gap-2">
+              <span className="w-1 h-5 bg-amber-500 rounded-full"></span>
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-medium mt-4 mb-2 text-foreground">
+            <h3 className="text-base sm:text-lg font-serif font-medium mt-5 mb-2 text-stone-800">
               {children}
             </h3>
           ),
-          // Custom paragraph
-          p: ({ children }) => (
-            <p className="my-2 leading-relaxed text-foreground/90">{children}</p>
+          h4: ({ children }) => (
+            <h4 className="text-sm sm:text-base font-medium mt-4 mb-2 text-stone-700">
+              {children}
+            </h4>
           ),
-          // Custom list styles
+          p: ({ children }) => (
+            <p className="my-3 leading-relaxed text-stone-700 text-sm sm:text-base">
+              {children}
+            </p>
+          ),
           ul: ({ children }) => (
-            <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
+            <ul className="my-3 space-y-2 text-sm sm:text-base">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal list-inside my-2 space-y-1">
+            <ol className="my-3 space-y-2 list-decimal list-inside text-sm sm:text-base">
               {children}
             </ol>
           ),
           li: ({ children }) => (
-            <li className="text-foreground/90">{children}</li>
+            <li className="flex items-start gap-2 text-stone-700">
+              <span className="mt-2 w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"></span>
+              <span className="flex-1">{children}</span>
+            </li>
           ),
-          // Code blocks
           code: ({ className, children }) => {
             const isInline = !className;
             if (isInline) {
               return (
-                <code className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm font-mono">
+                <code className="bg-stone-100 text-amber-700 px-1.5 py-0.5 rounded text-sm font-mono">
                   {children}
                 </code>
               );
             }
             return (
-              <code className="block bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm font-mono overflow-x-auto">
+              <code className="block bg-stone-900 text-stone-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
                 {children}
               </code>
             );
           },
           pre: ({ children }) => (
-            <pre className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg overflow-x-auto my-3">
-              {children}
-            </pre>
+            <pre className="my-4 overflow-hidden rounded-lg">{children}</pre>
           ),
-          // Links
           a: ({ href, children }) => (
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-amber-700 hover:text-amber-800 underline underline-offset-2 transition-colors"
             >
               {children}
             </a>
           ),
-          // Blockquotes
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-zinc-300 dark:border-zinc-600 pl-4 my-3 italic text-foreground/80">
+            <blockquote className="my-4 pl-4 border-l-4 border-amber-500 bg-amber-50 py-2 pr-4 rounded-r-lg text-stone-700 italic">
               {children}
             </blockquote>
           ),
-          // Tables (standard markdown tables)
           table: ({ children }) => (
-            <div className="overflow-x-auto my-4">
-              <table className="min-w-full border-collapse border border-zinc-200 dark:border-zinc-700">
+            <div className="my-4 overflow-x-auto rounded-lg border border-stone-200">
+              <table className="min-w-full divide-y divide-stone-200">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-zinc-100 dark:bg-zinc-800">{children}</thead>
+            <thead className="bg-stone-50">{children}</thead>
           ),
           th: ({ children }) => (
-            <th className="border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-left font-semibold">
+            <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-wider text-stone-600">
               {children}
             </th>
           ),
+          tbody: ({ children }) => (
+            <tbody className="bg-white divide-y divide-stone-100">
+              {children}
+            </tbody>
+          ),
+          tr: ({ children }) => (
+            <tr className="hover:bg-stone-50 transition-colors">
+              {children}
+            </tr>
+          ),
           td: ({ children }) => (
-            <td className="border border-zinc-200 dark:border-zinc-700 px-4 py-2">
+            <td className="px-4 py-3 text-sm text-stone-700 whitespace-nowrap">
               {children}
             </td>
           ),
-          // Horizontal rule
-          hr: () => (
-            <hr className="my-6 border-zinc-200 dark:border-zinc-700" />
-          ),
-          // Strong and emphasis
+          hr: () => <hr className="my-8 border-stone-200" />,
           strong: ({ children }) => (
-            <strong className="font-semibold">{children}</strong>
+            <strong className="font-semibold text-stone-900">{children}</strong>
           ),
-          em: ({ children }) => <em className="italic">{children}</em>,
+          em: ({ children }) => (
+            <em className="italic text-stone-600">{children}</em>
+          ),
         }}
       >
         {content}
@@ -143,20 +148,10 @@ const MarkdownBlock = memo(function MarkdownBlock({
   );
 });
 
-/**
- * Renders custom table from _Table syntax
- */
-const TableRenderer = memo(function TableRenderer({
-  block,
-}: {
-  block: ParsedTable;
-}) {
+const TableRenderer = memo(function TableRenderer({ block }: { block: ParsedTable }) {
   return <ComparisonTable columns={block.columns} rows={[]} />;
 });
 
-/**
- * Renders custom poll from _Poll syntax
- */
 const PollRenderer = memo(function PollRenderer({
   block,
   onAnswer,
@@ -180,30 +175,15 @@ const PollRenderer = memo(function PollRenderer({
   );
 });
 
-/**
- * Renders custom score chart from _Score syntax
- */
-const ScoreRenderer = memo(function ScoreRenderer({
-  block,
-}: {
-  block: ParsedScore;
-}) {
-  // Convert ParsedScore to AxisScore format
+const ScoreRenderer = memo(function ScoreRenderer({ block }: { block: ParsedScore }) {
   const axisScore = {
     axis: block.axis,
-    scores: Object.fromEntries(
-      block.scores.map((s) => [s.option, s.score])
-    ),
+    scores: Object.fromEntries(block.scores.map((s) => [s.option, s.score])),
   };
-
   const options = block.scores.map((s) => s.option);
-
   return <ScoreChart scores={[axisScore]} options={options} />;
 });
 
-/**
- * Renders a single parsed block
- */
 const BlockRenderer = memo(function BlockRenderer({
   block,
   index,
@@ -222,11 +202,7 @@ const BlockRenderer = memo(function BlockRenderer({
       return <TableRenderer block={block} />;
     case "poll":
       return (
-        <PollRenderer
-          block={block}
-          onAnswer={onPollAnswer}
-          questionId={`${id}-poll-${index}`}
-        />
+        <PollRenderer block={block} onAnswer={onPollAnswer} questionId={`${id}-poll-${index}`} />
       );
     case "score":
       return <ScoreRenderer block={block} />;
@@ -235,25 +211,12 @@ const BlockRenderer = memo(function BlockRenderer({
   }
 });
 
-/**
- * MemoizedMarkdown Component
- * 
- * Optimized markdown renderer with support for custom rendering keys:
- * - _Table{col1:type,col2:type} - Renders a styled comparison table
- * - _Poll{opt1,opt2,opt3} - Renders an interactive poll
- * - _Score{axis:opt1=N,opt2=N} - Renders a visual score chart
- * 
- * Uses React.memo for streaming optimization.
- */
 export const MemoizedMarkdown = memo(function MemoizedMarkdown({
   content,
   id,
   onPollAnswer,
 }: MemoizedMarkdownProps) {
-  // Parse content into blocks using custom parser for special keys
-  const blocks = useMemo(() => {
-    return parseMarkdownCustomKeys(content);
-  }, [content]);
+  const blocks = useMemo(() => parseMarkdownCustomKeys(content), [content]);
 
   return (
     <div className="memoized-markdown" data-id={id}>

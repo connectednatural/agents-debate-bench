@@ -28,11 +28,11 @@ const ApiKeyInput = memo(function ApiKeyInput({
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <label className="block text-sm font-medium text-stone-700">
         {label}
       </label>
       {description && (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{description}</p>
+        <p className="text-xs text-stone-500">{description}</p>
       )}
       <div className="relative">
         <input
@@ -40,12 +40,12 @@ const ApiKeyInput = memo(function ApiKeyInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full px-4 py-2.5 pr-12 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-2.5 pr-12 rounded-lg border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
         />
         <button
           type="button"
           onClick={() => setShowKey(!showKey)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
         >
           {showKey ? (
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -60,7 +60,7 @@ const ApiKeyInput = memo(function ApiKeyInput({
         </button>
       </div>
       {value && (
-        <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+        <div className="flex items-center gap-1 text-xs text-green-600">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
@@ -89,13 +89,13 @@ const ModelSelector = memo(function ModelSelector({
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <label className="block text-sm font-medium text-stone-700">
         Model
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-4 py-2.5 rounded-lg border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
       >
         {models.map((model) => (
           <option key={model.id} value={model.id}>
@@ -120,12 +120,12 @@ const ParallelismSlider = memo(function ParallelismSlider({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <label className="block text-sm font-medium text-stone-700">
           Max Parallel Agents
         </label>
-        <span className="text-sm font-mono text-blue-600 dark:text-blue-400">{value}</span>
+        <span className="text-sm font-mono text-amber-600">{value}</span>
       </div>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="text-xs text-stone-500">
         Number of advocate agents that can run simultaneously
       </p>
       <input
@@ -134,9 +134,9 @@ const ParallelismSlider = memo(function ParallelismSlider({
         max={3}
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value) as 1 | 2 | 3)}
-        className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
       />
-      <div className="flex justify-between text-xs text-zinc-400">
+      <div className="flex justify-between text-xs text-stone-400">
         <span>1 (Sequential)</span>
         <span>2</span>
         <span>3 (Max)</span>
@@ -148,9 +148,6 @@ const ParallelismSlider = memo(function ParallelismSlider({
 
 /**
  * SettingsPanel Component
- * 
- * Modal/panel for configuring API keys and preferences.
- * Requirements: 7.1, 7.2, 7.3, 7.4, 7.6
  */
 export const SettingsPanel = memo(function SettingsPanel({
   isOpen,
@@ -167,14 +164,12 @@ export const SettingsPanel = memo(function SettingsPanel({
     setMaxParallelism,
   } = useSettingsStore();
 
-  // Local state for form
   const [localGeminiKey, setLocalGeminiKey] = useState(geminiApiKey);
   const [localExaKey, setLocalExaKey] = useState(exaApiKey);
   const [localModel, setLocalModel] = useState(model);
   const [localParallelism, setLocalParallelism] = useState(maxParallelism);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Sync local state with store on open
   useEffect(() => {
     if (isOpen) {
       setLocalGeminiKey(geminiApiKey);
@@ -185,7 +180,6 @@ export const SettingsPanel = memo(function SettingsPanel({
     }
   }, [isOpen, geminiApiKey, exaApiKey, model, maxParallelism]);
 
-  // Track changes
   useEffect(() => {
     const changed =
       localGeminiKey !== geminiApiKey ||
@@ -207,7 +201,6 @@ export const SettingsPanel = memo(function SettingsPanel({
     onClose();
   }, [onClose]);
 
-  // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -229,15 +222,15 @@ export const SettingsPanel = memo(function SettingsPanel({
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-lg mx-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg mx-4 bg-[#faf9f7] rounded-2xl shadow-2xl overflow-hidden border border-stone-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
-          <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+          <h2 className="text-lg font-serif text-stone-800">
             Settings
           </h2>
           <button
             onClick={handleCancel}
-            className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-2 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -249,8 +242,8 @@ export const SettingsPanel = memo(function SettingsPanel({
         <div className="px-6 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
           {/* API Keys Section */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
-              API Keys
+            <h3 className="text-xs font-mono text-stone-500 uppercase tracking-widest">
+              [ API Keys ]
             </h3>
             
             <ApiKeyInput
@@ -272,8 +265,8 @@ export const SettingsPanel = memo(function SettingsPanel({
 
           {/* Model Section */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
-              Model Settings
+            <h3 className="text-xs font-mono text-stone-500 uppercase tracking-widest">
+              [ Model Settings ]
             </h3>
             
             <ModelSelector value={localModel} onChange={setLocalModel} />
@@ -281,8 +274,8 @@ export const SettingsPanel = memo(function SettingsPanel({
 
           {/* Performance Section */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
-              Performance
+            <h3 className="text-xs font-mono text-stone-500 uppercase tracking-widest">
+              [ Performance ]
             </h3>
             
             <ParallelismSlider
@@ -292,15 +285,15 @@ export const SettingsPanel = memo(function SettingsPanel({
           </div>
 
           {/* Info Box */}
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
             <div className="flex gap-3">
-              <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <div className="text-sm text-blue-700 dark:text-blue-300">
+              <div className="text-sm text-amber-800">
                 <p className="font-medium">Your keys are stored locally</p>
-                <p className="mt-1 text-blue-600 dark:text-blue-400">
-                  API keys are saved in your browser&apos;s local storage and never sent to our servers.
+                <p className="mt-1 text-amber-700">
+                  API keys are saved in your browser&apos;s local storage and only sent to our servers when you are making a request and are never stored.
                 </p>
               </div>
             </div>
@@ -308,10 +301,10 @@ export const SettingsPanel = memo(function SettingsPanel({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-200 bg-stone-50">
           <button
             onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-800 transition-colors"
           >
             Cancel
           </button>
@@ -320,8 +313,8 @@ export const SettingsPanel = memo(function SettingsPanel({
             disabled={!hasChanges}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               hasChanges
-                ? "bg-blue-500 text-white hover:bg-blue-600"
-                : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 cursor-not-allowed"
+                ? "bg-stone-900 text-white hover:bg-amber-700"
+                : "bg-stone-200 text-stone-400 cursor-not-allowed"
             }`}
           >
             Save Changes

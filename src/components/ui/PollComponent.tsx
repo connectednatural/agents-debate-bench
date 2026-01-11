@@ -9,9 +9,6 @@ export interface PollComponentProps {
   disabled?: boolean;
 }
 
-/**
- * Single option button for single-select polls
- */
 const SingleOption = memo(function SingleOption({
   option,
   isSelected,
@@ -29,11 +26,11 @@ const SingleOption = memo(function SingleOption({
       onClick={onSelect}
       disabled={disabled}
       className={`
-        w-full px-4 py-3 text-left rounded-lg border transition-all
+        w-full px-4 py-3.5 text-left rounded-xl border-2 transition-all duration-200
         ${
           isSelected
-            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-            : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            ? "border-amber-500 bg-amber-50 shadow-sm"
+            : "border-stone-200 hover:border-stone-300 hover:bg-stone-50"
         }
         ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
       `}
@@ -41,27 +38,24 @@ const SingleOption = memo(function SingleOption({
       <div className="flex items-center gap-3">
         <div
           className={`
-            w-5 h-5 rounded-full border-2 flex items-center justify-center
+            w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
             ${
               isSelected
-                ? "border-blue-500 bg-blue-500"
-                : "border-zinc-300 dark:border-zinc-600"
+                ? "border-amber-500 bg-amber-500"
+                : "border-stone-300"
             }
           `}
         >
-          {isSelected && (
-            <div className="w-2 h-2 rounded-full bg-white" />
-          )}
+          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
         </div>
-        <span className="text-sm">{option}</span>
+        <span className={`text-sm font-medium ${isSelected ? "text-amber-800" : "text-stone-700"}`}>
+          {option}
+        </span>
       </div>
     </button>
   );
 });
 
-/**
- * Multi-select checkbox option
- */
 const MultiOption = memo(function MultiOption({
   option,
   isSelected,
@@ -79,11 +73,11 @@ const MultiOption = memo(function MultiOption({
       onClick={onToggle}
       disabled={disabled}
       className={`
-        w-full px-4 py-3 text-left rounded-lg border transition-all
+        w-full px-4 py-3.5 text-left rounded-xl border-2 transition-all duration-200
         ${
           isSelected
-            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-            : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            ? "border-amber-500 bg-amber-50 shadow-sm"
+            : "border-stone-200 hover:border-stone-300 hover:bg-stone-50"
         }
         ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
       `}
@@ -91,39 +85,28 @@ const MultiOption = memo(function MultiOption({
       <div className="flex items-center gap-3">
         <div
           className={`
-            w-5 h-5 rounded border-2 flex items-center justify-center
+            w-5 h-5 rounded border-2 flex items-center justify-center transition-all
             ${
               isSelected
-                ? "border-blue-500 bg-blue-500"
-                : "border-zinc-300 dark:border-zinc-600"
+                ? "border-amber-500 bg-amber-500"
+                : "border-stone-300"
             }
           `}
         >
           {isSelected && (
-            <svg
-              className="w-3 h-3 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           )}
         </div>
-        <span className="text-sm">{option}</span>
+        <span className={`text-sm font-medium ${isSelected ? "text-amber-800" : "text-stone-700"}`}>
+          {option}
+        </span>
       </div>
     </button>
   );
 });
 
-/**
- * Custom text input field
- */
 const CustomInput = memo(function CustomInput({
   value,
   onChange,
@@ -153,9 +136,10 @@ const CustomInput = memo(function CustomInput({
         disabled={disabled}
         placeholder={placeholder}
         className={`
-          flex-1 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-700
-          bg-white dark:bg-zinc-900 text-sm
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+          flex-1 px-4 py-3 rounded-xl border-2 border-stone-200
+          bg-white text-sm
+          focus:outline-none focus:border-amber-500
+          transition-colors
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         `}
       />
@@ -164,8 +148,8 @@ const CustomInput = memo(function CustomInput({
         onClick={onSubmit}
         disabled={disabled || !value.trim()}
         className={`
-          px-4 py-3 rounded-lg bg-blue-500 text-white text-sm font-medium
-          hover:bg-blue-600 transition-colors
+          px-4 py-3 rounded-xl bg-stone-100 text-sm font-medium
+          hover:bg-stone-200 transition-colors
           ${disabled || !value.trim() ? "opacity-50 cursor-not-allowed" : ""}
         `}
       >
@@ -175,38 +159,6 @@ const CustomInput = memo(function CustomInput({
   );
 });
 
-/**
- * PollComponent
- * 
- * Renders interactive poll components for clarification questions.
- * Supports single-select, multi-select, and text input modes.
- * 
- * @example
- * // Single select poll
- * <PollComponent
- *   question={{
- *     id: "q1",
- *     question: "Which framework are you comparing?",
- *     type: "single",
- *     options: ["React", "Vue", "Angular"],
- *     allowCustom: true
- *   }}
- *   onAnswer={(answer) => console.log(answer)}
- * />
- * 
- * @example
- * // Multi-select poll
- * <PollComponent
- *   question={{
- *     id: "q2",
- *     question: "What factors matter most?",
- *     type: "multi",
- *     options: ["Performance", "DX", "Community", "Cost"],
- *     allowCustom: false
- *   }}
- *   onAnswer={(answers) => console.log(answers)}
- * />
- */
 export const PollComponent = memo(function PollComponent({
   question,
   onAnswer,
@@ -218,7 +170,6 @@ export const PollComponent = memo(function PollComponent({
   const [customOptions, setCustomOptions] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
-  // Combine predefined options with custom ones
   const allOptions = [...(question.options || []), ...customOptions];
 
   const handleSingleSelect = useCallback((option: string) => {
@@ -245,7 +196,6 @@ export const PollComponent = memo(function PollComponent({
     
     setCustomOptions((prev) => [...prev, trimmed]);
     
-    // Auto-select the custom option
     if (question.type === "single") {
       setSelectedSingle(trimmed);
     } else if (question.type === "multi") {
@@ -267,7 +217,6 @@ export const PollComponent = memo(function PollComponent({
       if (selectedMulti.size === 0) return;
       answer = Array.from(selectedMulti);
     } else {
-      // Text type
       if (!customInput.trim()) return;
       answer = customInput.trim();
     }
@@ -282,15 +231,18 @@ export const PollComponent = memo(function PollComponent({
     !!customInput.trim();
 
   return (
-    <div className="my-4 p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
+    <div className="my-4 p-5 border-2 border-stone-200 rounded-2xl bg-white shadow-sm">
       {/* Question */}
-      <h4 className="text-base font-medium text-zinc-800 dark:text-zinc-200 mb-4">
+      <h4 className="text-base font-serif font-medium text-stone-800 mb-1">
         {question.question}
       </h4>
 
       {/* Type indicator */}
       {question.type === "multi" && (
-        <p className="text-xs text-zinc-500 mb-3">Select all that apply</p>
+        <p className="text-xs text-stone-500 font-mono uppercase tracking-wider mb-4">[Select all that apply]</p>
+      )}
+      {question.type === "single" && (
+        <p className="text-xs text-stone-500 font-mono uppercase tracking-wider mb-4">[Choose one]</p>
       )}
 
       {/* Options */}
@@ -329,9 +281,10 @@ export const PollComponent = memo(function PollComponent({
               placeholder="Enter your answer..."
               rows={3}
               className={`
-                w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-700
-                bg-white dark:bg-zinc-900 text-sm resize-none
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                w-full px-4 py-3 rounded-xl border-2 border-stone-200
+                bg-white text-sm resize-none
+                focus:outline-none focus:border-amber-500
+                transition-colors
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -341,7 +294,7 @@ export const PollComponent = memo(function PollComponent({
               onChange={setCustomInput}
               onSubmit={handleAddCustom}
               disabled={disabled || submitted}
-              placeholder="Or enter your own option..."
+              placeholder="Or type your own..."
             />
           )}
         </div>
@@ -354,35 +307,27 @@ export const PollComponent = memo(function PollComponent({
           onClick={handleSubmit}
           disabled={disabled || !canSubmit}
           className={`
-            w-full px-4 py-3 rounded-lg font-medium text-sm transition-colors
+            w-full px-4 py-3.5 rounded-xl font-mono text-sm uppercase tracking-widest transition-all duration-200
             ${
               canSubmit && !disabled
-                ? "bg-blue-500 text-white hover:bg-blue-600"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
+                ? "bg-stone-900 text-white hover:bg-amber-700 shadow-lg"
+                : "bg-stone-100 text-stone-400 cursor-not-allowed"
             }
           `}
         >
-          Submit Answer
+          Continue
         </button>
       )}
 
       {/* Submitted state */}
       {submitted && (
-        <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-          <span className="text-sm font-medium">Answer submitted</span>
+        <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
+          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-green-700">Answer submitted</span>
         </div>
       )}
     </div>
