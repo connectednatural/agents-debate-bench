@@ -131,7 +131,7 @@ const MessageBubble = memo(function MessageBubble({
           relative max-w-[90%] sm:max-w-[85%] rounded-2xl
           ${
             isUser
-              ? "bg-stone-900 text-white shadow-lg"
+              ? "bg-stone-800 shadow-lg"
               : isSystem
               ? "bg-amber-50 border border-amber-200"
               : "bg-white shadow-sm border border-stone-200"
@@ -147,7 +147,7 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         )}
         
-        <div className={`px-4 ${config ? "pt-1 pb-4" : "py-4"}`}>
+        <div className={`px-4 ${config ? "pt-1 pb-4" : "py-4"} ${isUser ? "text-white [&_.prose]:text-white [&_p]:text-white [&_li]:text-white [&_strong]:text-white [&_em]:text-stone-200" : ""}`}>
           <MemoizedMarkdown
             content={message.content}
             id={message.id}
@@ -201,12 +201,19 @@ const QueryInput = memo(function QueryInput({
   onSubmit,
   disabled,
   placeholder = "Compare technologies... (e.g., 'React vs Vue vs Angular for a startup')",
+  value = "",
+  onChange,
 }: {
   onSubmit: (query: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const query = value !== undefined && onChange ? value : internalQuery;
+  const setQuery = onChange || setInternalQuery;
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -228,46 +235,66 @@ const QueryInput = memo(function QueryInput({
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + "px";
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 150) + "px";
     }
   }, [query]);
 
+  // Focus input when value changes from example click
+  useEffect(() => {
+    if (value && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [value]);
+
   return (
-    <form onSubmit={handleSubmit} className="flex gap-3 items-end">
-      <div className="flex-1 relative">
+    <form onSubmit={handleSubmit} className="relative">
+      <div 
+        className={`
+          relative flex items-end gap-2 rounded-2xl border-2 transition-all duration-300 ease-out
+          ${isFocused 
+            ? "bg-white border-amber-500 shadow-lg shadow-amber-500/10 ring-4 ring-amber-500/10" 
+            : "bg-stone-50 border-stone-200 shadow-sm hover:border-stone-300 hover:bg-white"
+          }
+          ${disabled ? "opacity-60" : ""}
+        `}
+      >
         <textarea
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           disabled={disabled}
           placeholder={placeholder}
           rows={1}
           className={`
-            w-full px-4 py-3 rounded-2xl border-2 border-stone-200
-            bg-white text-sm resize-none font-sans
-            focus:outline-none focus:border-amber-500
-            transition-colors duration-200
-            ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+            flex-1 px-4 py-3.5 bg-transparent text-stone-900 text-sm resize-none font-sans
+            focus:outline-none placeholder:text-stone-400
+            min-h-[52px] max-h-[150px]
+            ${disabled ? "cursor-not-allowed" : ""}
           `}
         />
+        <button
+          type="submit"
+          disabled={disabled || !query.trim()}
+          className={`
+            flex items-center justify-center w-10 h-10 m-1.5 rounded-xl font-medium text-sm transition-all duration-200 shrink-0
+            ${
+              !disabled && query.trim()
+                ? "bg-amber-500 text-white hover:bg-amber-600 shadow-md hover:shadow-amber-500/30 hover:scale-105 active:scale-95"
+                : "bg-stone-200 text-stone-400 cursor-not-allowed"
+            }
+          `}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+          </svg>
+        </button>
       </div>
-      <button
-        type="submit"
-        disabled={disabled || !query.trim()}
-        className={`
-          flex items-center justify-center w-12 h-12 rounded-xl font-medium text-sm transition-all duration-200
-          ${
-            !disabled && query.trim()
-              ? "bg-stone-900 text-white hover:bg-amber-700 shadow-lg hover:shadow-amber-500/20 hover:scale-105"
-              : "bg-stone-100 text-stone-400 cursor-not-allowed"
-          }
-        `}
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-      </button>
+      <p className={`text-xs mt-2 text-center transition-colors duration-200 ${isFocused ? "text-stone-500" : "text-stone-400"}`}>
+        Press Enter to send · Shift+Enter for new line
+      </p>
     </form>
   );
 });
@@ -354,7 +381,11 @@ const ErrorDisplay = memo(function ErrorDisplay({
 /**
  * Welcome screen component
  */
-const WelcomeScreen = memo(function WelcomeScreen() {
+const WelcomeScreen = memo(function WelcomeScreen({
+  onExampleClick,
+}: {
+  onExampleClick?: (example: string) => void;
+}) {
   const examples = [
     "React vs Vue vs Svelte for a new SaaS product",
     "PostgreSQL vs MongoDB for an e-commerce platform",
@@ -384,12 +415,18 @@ const WelcomeScreen = memo(function WelcomeScreen() {
           </p>
           <div className="space-y-2">
             {examples.map((example, i) => (
-              <div
+              <button
                 key={i}
-                className="px-4 py-3 bg-white rounded-xl text-sm text-stone-600 border border-stone-200 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-default"
+                onClick={() => onExampleClick?.(example)}
+                className="w-full text-left px-4 py-3 bg-white rounded-xl text-sm text-stone-600 border border-stone-200 hover:border-amber-400 hover:bg-amber-50/50 hover:text-stone-900 transition-all duration-200 group"
               >
-                "{example}"
-              </div>
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-stone-300 group-hover:text-amber-500 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                  {example}
+                </span>
+              </button>
             ))}
           </div>
         </div>
@@ -419,6 +456,7 @@ export const ComparisonChat = memo(function ComparisonChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<APIError | string | null>(null);
+  const [inputValue, setInputValue] = useState("");
   
   // Comparison state
   const [plan, setPlan] = useState<ComparisonPlan | null>(null);
