@@ -4,6 +4,7 @@
  * - _Table{col1:type,col2:type}
  * - _Poll{opt1,opt2,opt3}
  * - _Score{axis:opt1=N,opt2=N}
+ * Also parses standard markdown tables
  */
 
 export type TableColumnType = "string" | "number" | "boolean";
@@ -16,6 +17,7 @@ export interface ParsedTableColumn {
 export interface ParsedTable {
   type: "table";
   columns: ParsedTableColumn[];
+  rows: Record<string, string | number>[];
   raw: string;
 }
 
@@ -49,6 +51,9 @@ const TABLE_PATTERN = /_Table\{([^}]+)\}/g;
 const POLL_PATTERN = /_Poll\{([^}]+)\}/g;
 const SCORE_PATTERN = /_Score\{([^}]+)\}/g;
 
+// Regex pattern for standard markdown tables
+const MARKDOWN_TABLE_PATTERN = /^\|(.+)\|[\r\n]+\|[\s:|-]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/gm;
+
 /**
  * Parse a _Table{col1:type,col2:type} syntax
  */
@@ -73,6 +78,68 @@ export function parseTableKey(content: string): ParsedTableColumn[] {
   }
 
   return columns;
+}
+
+/**
+ * Parse a standard markdown table into columns and rows
+ */
+export function parseMarkdownTable(tableStr: string): { columns: ParsedTableColumn[]; rows: Record<string, string | number>[] } {
+  const lines = tableStr.trim().split(/[\r\n]+/).filter(line => line.trim());
+  
+  if (lines.length < 2) {
+    return { columns: [], rows: [] };
+  }
+
+  // Parse header row
+  const headerLine = lines[0];
+  const headers = headerLine
+    .split("|")
+    .map(h => h.trim())
+    .filter(h => h.length > 0);
+
+  // Create columns - infer type from first data row
+  const columns: ParsedTableColumn[] = headers.map(name => ({
+    name,
+    type: "string" as TableColumnType,
+  }));
+
+  // Skip separator line (index 1) and parse data rows
+  const rows: Record<string, string | number>[] = [];
+  
+  for (let i = 2; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim() || !line.includes("|")) continue;
+    
+    const cells = line
+      .split("|")
+      .map(c => c.trim())
+      .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1 || arr.length === headers.length + 2 ? idx > 0 && idx <= headers.length : true)
+      .slice(0, headers.length);
+
+    // Handle edge case where split creates empty first/last elements
+    const cleanCells = line.split("|").slice(1, -1).map(c => c.trim());
+    
+    if (cleanCells.length > 0) {
+      const row: Record<string, string | number> = {};
+      headers.forEach((header, idx) => {
+        const cellValue = cleanCells[idx] || "";
+        // Try to parse as number
+        const numValue = parseFloat(cellValue);
+        if (!isNaN(numValue) && cellValue.match(/^-?\d+\.?\d*$/)) {
+          row[header] = numValue;
+          // Update column type if we find a number
+          if (columns[idx]) {
+            columns[idx].type = "number";
+          }
+        } else {
+          row[header] = cellValue;
+        }
+      });
+      rows.push(row);
+    }
+  }
+
+  return { columns, rows };
 }
 
 /**
@@ -118,7 +185,7 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
   
   // Collect all matches with their positions
   interface Match {
-    type: "table" | "poll" | "score";
+    type: "table" | "poll" | "score" | "md-table";
     start: number;
     end: number;
     raw: string;
@@ -137,6 +204,18 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
       end: match.index + match[0].length,
       raw: match[0],
       content: match[1],
+    });
+  }
+
+  // Find all standard markdown tables
+  const mdTableRegex = new RegExp(MARKDOWN_TABLE_PATTERN.source, "gm");
+  while ((match = mdTableRegex.exec(markdown)) !== null) {
+    matches.push({
+      type: "md-table",
+      start: match.index,
+      end: match.index + match[0].length,
+      raw: match[0],
+      content: match[0],
     });
   }
 
@@ -167,10 +246,22 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
   // Sort matches by position
   matches.sort((a, b) => a.start - b.start);
 
+  // Remove overlapping matches (prefer custom _Table over md-table)
+  const filteredMatches: Match[] = [];
+  for (const m of matches) {
+    const overlaps = filteredMatches.some(
+      existing => (m.start >= existing.start && m.start < existing.end) ||
+                  (m.end > existing.start && m.end <= existing.end)
+    );
+    if (!overlaps) {
+      filteredMatches.push(m);
+    }
+  }
+
   // Build blocks array with text segments between custom keys
   let lastEnd = 0;
 
-  for (const m of matches) {
+  for (const m of filteredMatches) {
     // Add text block before this match if there's content
     if (m.start > lastEnd) {
       const textContent = markdown.slice(lastEnd, m.start);
@@ -185,6 +276,16 @@ export function parseMarkdownCustomKeys(markdown: string): ParsedBlock[] {
         blocks.push({
           type: "table",
           columns: parseTableKey(m.content),
+          rows: [],
+          raw: m.raw,
+        });
+        break;
+      case "md-table":
+        const { columns, rows } = parseMarkdownTable(m.content);
+        blocks.push({
+          type: "table",
+          columns,
+          rows,
           raw: m.raw,
         });
         break;
@@ -240,5 +341,6 @@ export function extractCustomKeys(markdown: string): (ParsedTable | ParsedPoll |
 export function hasCustomKeys(markdown: string): boolean {
   return TABLE_PATTERN.test(markdown) || 
          POLL_PATTERN.test(markdown) || 
-         SCORE_PATTERN.test(markdown);
+         SCORE_PATTERN.test(markdown) ||
+         MARKDOWN_TABLE_PATTERN.test(markdown);
 }

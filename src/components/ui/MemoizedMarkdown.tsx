@@ -149,7 +149,7 @@ const MarkdownBlock = memo(function MarkdownBlock({
 });
 
 const TableRenderer = memo(function TableRenderer({ block }: { block: ParsedTable }) {
-  return <ComparisonTable columns={block.columns} rows={[]} />;
+  return <ComparisonTable columns={block.columns} rows={block.rows} />;
 });
 
 const PollRenderer = memo(function PollRenderer({
