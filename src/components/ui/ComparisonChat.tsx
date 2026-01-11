@@ -24,12 +24,23 @@ export type ChatPhase =
   | "complete"
   | "error";
 
+// Viewable stages for the stage navigator
+type ViewableStage = "planning" | "advocating" | "cross-examining" | "refereeing";
+
+interface StageContent {
+  planning: string | null;
+  advocating: AdvocateResponse[];
+  "cross-examining": CrossExamineResponse[];
+  refereeing: string | null;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   phase?: ChatPhase;
   data?: unknown;
+  stage?: ViewableStage;
 }
 
 export interface ComparisonChatProps {
@@ -39,14 +50,21 @@ export interface ComparisonChatProps {
 }
 
 /**
- * Phase indicator component showing current progress
+ * Clickable Phase indicator component showing current progress
+ * Users can click on completed stages to view their content
  */
 const PhaseIndicator = memo(function PhaseIndicator({
   phase,
+  completedStages,
+  activeViewStage,
+  onStageClick,
 }: {
   phase: ChatPhase;
+  completedStages: Set<ViewableStage>;
+  activeViewStage: ViewableStage | null;
+  onStageClick: (stage: ViewableStage) => void;
 }) {
-  const phases: { key: ChatPhase; label: string }[] = [
+  const phases: { key: ViewableStage; label: string }[] = [
     { key: "planning", label: "Plan" },
     { key: "advocating", label: "Research" },
     { key: "cross-examining", label: "Debate" },
@@ -58,47 +76,66 @@ const PhaseIndicator = memo(function PhaseIndicator({
   return (
     <div className="sticky top-0 z-10 bg-[#faf9f7]/80 backdrop-blur-md border-b border-stone-200/50">
       <div className="flex items-center justify-center gap-1 sm:gap-2 px-4 py-3">
-        {phases.map((p, index) => (
-          <div key={p.key} className="flex items-center">
-            <div
-              className={`
-                flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-mono uppercase tracking-wider transition-all duration-300
-                ${
-                  index < currentIndex
-                    ? "bg-green-100 text-green-700"
-                    : index === currentIndex
-                    ? "bg-amber-100 text-amber-700 ring-2 ring-amber-500/30"
-                    : "bg-stone-100 text-stone-400"
-                }
-              `}
-            >
-              {index < currentIndex ? (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : index === currentIndex ? (
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-              ) : null}
-              <span className="hidden xs:inline sm:inline">{p.label}</span>
+        {phases.map((p, index) => {
+          const isCompleted = completedStages.has(p.key);
+          const isCurrent = index === currentIndex;
+          const isActive = activeViewStage === p.key;
+          const isClickable = isCompleted || isCurrent;
+
+          return (
+            <div key={p.key} className="flex items-center">
+              <button
+                onClick={() => isClickable && onStageClick(p.key)}
+                disabled={!isClickable}
+                className={`
+                  flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-mono uppercase tracking-wider transition-all duration-300
+                  ${isClickable ? "cursor-pointer hover:scale-105" : "cursor-default"}
+                  ${isActive 
+                    ? "bg-amber-200 text-amber-800 ring-2 ring-amber-500 shadow-md" 
+                    : isCompleted
+                      ? "bg-green-100 text-green-700 hover:bg-green-200"
+                      : isCurrent
+                        ? "bg-amber-100 text-amber-700 ring-2 ring-amber-500/30"
+                        : "bg-stone-100 text-stone-400"
+                  }
+                `}
+              >
+                {isCompleted && !isCurrent ? (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : isCurrent && !isCompleted ? (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                ) : null}
+                <span className="hidden xs:inline sm:inline">{p.label}</span>
+              </button>
+              {index < phases.length - 1 && (
+                <div
+                  className={`w-4 sm:w-8 h-0.5 mx-1 transition-colors duration-300 ${
+                    completedStages.has(phases[index + 1]?.key) || index < currentIndex
+                      ? "bg-green-400"
+                      : "bg-stone-200"
+                  }`}
+                />
+              )}
             </div>
-            {index < phases.length - 1 && (
-              <div
-                className={`w-4 sm:w-8 h-0.5 mx-1 transition-colors duration-300 ${
-                  index < currentIndex
-                    ? "bg-green-400"
-                    : "bg-stone-200"
-                }`}
-              />
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
+      {activeViewStage && (
+        <div className="text-center pb-2">
+          <span className="text-xs text-amber-600 font-mono">
+            Viewing: {phases.find(p => p.key === activeViewStage)?.label}
+          </span>
+        </div>
+      )}
     </div>
   );
 });
+
 
 /**
  * Message bubble component with improved styling
@@ -378,6 +415,7 @@ const ErrorDisplay = memo(function ErrorDisplay({
   );
 });
 
+
 /**
  * Welcome screen component
  */
@@ -435,11 +473,111 @@ const WelcomeScreen = memo(function WelcomeScreen({
   );
 });
 
+/**
+ * Stage content viewer - shows content for a specific stage
+ */
+const StageContentViewer = memo(function StageContentViewer({
+  stage,
+  stageContent,
+  onClose,
+}: {
+  stage: ViewableStage;
+  stageContent: StageContent;
+  onClose: () => void;
+}) {
+  const stageLabels: Record<ViewableStage, string> = {
+    planning: "Comparison Plan",
+    advocating: "Research & Arguments",
+    "cross-examining": "Cross-Examination",
+    refereeing: "Final Verdict",
+  };
+
+  const renderContent = () => {
+    switch (stage) {
+      case "planning":
+        return stageContent.planning ? (
+          <div className="prose prose-stone max-w-none">
+            <MemoizedMarkdown content={stageContent.planning} id="stage-planning" />
+          </div>
+        ) : (
+          <p className="text-stone-500">No planning content available.</p>
+        );
+      
+      case "advocating":
+        return stageContent.advocating.length > 0 ? (
+          <div className="space-y-6">
+            {stageContent.advocating.map((response, idx) => (
+              <div key={idx} className="bg-white rounded-xl border border-stone-200 p-4">
+                <h4 className="font-mono text-sm text-violet-600 uppercase tracking-wider mb-3">
+                  Advocate for {response.option}
+                </h4>
+                <div className="prose prose-stone max-w-none">
+                  <MemoizedMarkdown content={response.argument} id={`stage-advocate-${idx}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-stone-500">No research content available.</p>
+        );
+      
+      case "cross-examining":
+        return stageContent["cross-examining"].length > 0 ? (
+          <div className="space-y-6">
+            {stageContent["cross-examining"].map((response, idx) => (
+              <div key={idx} className="bg-white rounded-xl border border-stone-200 p-4">
+                <h4 className="font-mono text-sm text-amber-600 uppercase tracking-wider mb-3">
+                  Cross-Examination by {response.option}
+                </h4>
+                <div className="prose prose-stone max-w-none">
+                  <MemoizedMarkdown content={response.defense} id={`stage-cross-${idx}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-stone-500">No cross-examination content available.</p>
+        );
+      
+      case "refereeing":
+        return stageContent.refereeing ? (
+          <div className="prose prose-stone max-w-none">
+            <MemoizedMarkdown content={stageContent.refereeing} id="stage-referee" />
+          </div>
+        ) : (
+          <p className="text-stone-500">No verdict content available.</p>
+        );
+    }
+  };
+
+  return (
+    <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 mb-4 animate-in fade-in duration-300">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-mono text-sm text-amber-700 uppercase tracking-wider">
+          {stageLabels[stage]}
+        </h3>
+        <button
+          onClick={onClose}
+          className="text-amber-600 hover:text-amber-800 p-1 rounded-lg hover:bg-amber-100 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="max-h-[60vh] overflow-y-auto">
+        {renderContent()}
+      </div>
+    </div>
+  );
+});
+
 
 /**
  * ComparisonChat Component
  * 
  * Main chat interface managing the comparison flow through all phases
+ * with clickable stage navigation and scroll position preservation
  */
 export const ComparisonChat = memo(function ComparisonChat({
   sessionId: initialSessionId,
@@ -466,38 +604,52 @@ export const ComparisonChat = memo(function ComparisonChat({
   const [crossExamResponses, setCrossExamResponses] = useState<CrossExamineResponse[]>([]);
   const [refereeResponse, setRefereeResponse] = useState<RefereeResponse | null>(null);
 
+  // Stage navigation state
+  const [completedStages, setCompletedStages] = useState<Set<ViewableStage>>(new Set());
+  const [activeViewStage, setActiveViewStage] = useState<ViewableStage | null>(null);
+  const [stageContent, setStageContent] = useState<StageContent>({
+    planning: null,
+    advocating: [],
+    "cross-examining": [],
+    refereeing: null,
+  });
+
   // Refs for smart scrolling
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userHasScrolledRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+  const isStreamingRef = useRef(false);
 
-  // Smart scroll - only auto-scroll if user is near bottom
+  // Smart scroll - only auto-scroll if user is near bottom and hasn't scrolled up
   const scrollToBottom = useCallback((force = false) => {
     if (!messagesContainerRef.current || !messagesEndRef.current) return;
+    
+    // Don't auto-scroll if user has manually scrolled up during streaming
+    if (userHasScrolledRef.current && !force) return;
     
     const container = messagesContainerRef.current;
     const { scrollTop, scrollHeight, clientHeight } = container;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
     
-    if (force || isNearBottom || !userHasScrolledRef.current) {
+    if (force || isNearBottom) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, []);
 
-  // Track user scroll
+  // Track user scroll - respect user's scroll position
   const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current) return;
     
     const container = messagesContainerRef.current;
     const { scrollTop, scrollHeight, clientHeight } = container;
     
-    // User scrolled up
-    if (scrollTop < lastScrollTopRef.current) {
+    // User scrolled up during streaming - respect their position
+    if (scrollTop < lastScrollTopRef.current && isStreamingRef.current) {
       userHasScrolledRef.current = true;
     }
     
-    // User scrolled to bottom
+    // User scrolled back to bottom - resume auto-scroll
     if (scrollHeight - scrollTop - clientHeight < 50) {
       userHasScrolledRef.current = false;
     }
@@ -505,10 +657,27 @@ export const ComparisonChat = memo(function ComparisonChat({
     lastScrollTopRef.current = scrollTop;
   }, []);
 
-  // Scroll on new messages
+  // Handle stage click - view content for a specific stage
+  const handleStageClick = useCallback((stage: ViewableStage) => {
+    if (activeViewStage === stage) {
+      // Toggle off if clicking the same stage
+      setActiveViewStage(null);
+    } else {
+      setActiveViewStage(stage);
+    }
+  }, [activeViewStage]);
+
+  // Close stage viewer
+  const handleCloseStageViewer = useCallback(() => {
+    setActiveViewStage(null);
+  }, []);
+
+  // Scroll on new messages (only if not viewing a stage)
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    if (!activeViewStage) {
+      scrollToBottom();
+    }
+  }, [messages, scrollToBottom, activeViewStage]);
 
   // Notify parent of phase changes
   useEffect(() => {
@@ -524,9 +693,26 @@ export const ComparisonChat = memo(function ComparisonChat({
         setCurrentSession(initialSessionId);
         
         if (session.plan) setPlan(session.plan);
-        if (session.arguments) setAdvocateResponses(session.arguments);
-        if (session.crossExaminations) setCrossExamResponses(session.crossExaminations);
-        if (session.result) setRefereeResponse(session.result);
+        if (session.arguments) {
+          setAdvocateResponses(session.arguments);
+          setStageContent(prev => ({ ...prev, advocating: session.arguments || [] }));
+        }
+        if (session.crossExaminations) {
+          setCrossExamResponses(session.crossExaminations);
+          setStageContent(prev => ({ ...prev, "cross-examining": session.crossExaminations || [] }));
+        }
+        if (session.result) {
+          setRefereeResponse(session.result);
+          setStageContent(prev => ({ ...prev, refereeing: session.result?.summary || null }));
+        }
+        
+        // Reconstruct completed stages
+        const stages = new Set<ViewableStage>();
+        if (session.plan) stages.add("planning");
+        if (session.arguments?.length) stages.add("advocating");
+        if (session.crossExaminations?.length) stages.add("cross-examining");
+        if (session.result) stages.add("refereeing");
+        setCompletedStages(stages);
         
         if (session.status === "complete") {
           setPhase("complete");
@@ -556,7 +742,6 @@ export const ComparisonChat = memo(function ComparisonChat({
       id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     };
     setMessages((prev) => [...prev, newMessage]);
-    userHasScrolledRef.current = false; // Reset scroll tracking on new message
     return newMessage.id;
   }, []);
 
@@ -568,6 +753,7 @@ export const ComparisonChat = memo(function ComparisonChat({
 
   const handleError = useCallback((err: unknown, context: string) => {
     console.error(`${context} error:`, err);
+    isStreamingRef.current = false;
     
     let apiError: APIError;
     if (err && typeof err === "object" && "code" in err) {
@@ -591,10 +777,12 @@ export const ComparisonChat = memo(function ComparisonChat({
     }
   }, [sessionId]);
 
+
   const callPlanner = useCallback(async (query: string, clarificationAnswers?: Record<string, string | string[]>) => {
     setPhase("planning");
     setIsLoading(true);
     setError(null);
+    isStreamingRef.current = true;
 
     try {
       const response = await fetch("/api/planner", {
@@ -624,6 +812,12 @@ export const ComparisonChat = memo(function ComparisonChat({
         });
       } else if (data.plan) {
         setPlan(data.plan);
+        setCompletedStages(prev => new Set([...prev, "planning"]));
+        setStageContent(prev => ({
+          ...prev,
+          planning: `Comparing **${data.plan.options.join("**, **")}** across ${data.plan.axes.length} dimensions:\n\n${data.plan.axes.map((a: { name: string; description: string }) => `- **${a.name}**: ${a.description}`).join("\n")}`,
+        }));
+        
         if (sessionId) {
           updateSession(sessionId, { plan: data.plan, status: "advocating" });
         }
@@ -638,12 +832,15 @@ export const ComparisonChat = memo(function ComparisonChat({
       handleError(err, "Planner");
     } finally {
       setIsLoading(false);
+      isStreamingRef.current = false;
     }
   }, [geminiApiKey, exaApiKey, sessionId, addMessage, updateSession, handleError]);
 
   const runAdvocates = useCallback(async (comparisonPlan: ComparisonPlan) => {
     setPhase("advocating");
     setIsLoading(true);
+    isStreamingRef.current = true;
+    userHasScrolledRef.current = false;
     
     if (sessionId) {
       updateSession(sessionId, { status: "advocating" });
@@ -692,7 +889,11 @@ export const ComparisonChat = memo(function ComparisonChat({
               const chunk = decoder.decode(value, { stream: true });
               fullContent += chunk;
               updateMessage(msgId, `## Advocate for ${option}\n\n${fullContent}`);
-              scrollToBottom();
+              
+              // Only scroll if user hasn't scrolled up
+              if (!userHasScrolledRef.current) {
+                scrollToBottom();
+              }
             }
           }
 
@@ -725,6 +926,8 @@ export const ComparisonChat = memo(function ComparisonChat({
     }
 
     setAdvocateResponses(responses);
+    setCompletedStages(prev => new Set([...prev, "advocating"]));
+    setStageContent(prev => ({ ...prev, advocating: responses }));
     
     if (sessionId) {
       updateSession(sessionId, { arguments: responses });
@@ -738,6 +941,8 @@ export const ComparisonChat = memo(function ComparisonChat({
     advocateArgs: AdvocateResponse[]
   ) => {
     setPhase("cross-examining");
+    isStreamingRef.current = true;
+    userHasScrolledRef.current = false;
     
     if (sessionId) {
       updateSession(sessionId, { status: "cross-examining" });
@@ -789,7 +994,10 @@ export const ComparisonChat = memo(function ComparisonChat({
               const chunk = decoder.decode(value, { stream: true });
               fullContent += chunk;
               updateMessage(msgId, `## Cross-Examination by ${ownArg.option}\n\n${fullContent}`);
-              scrollToBottom();
+              
+              if (!userHasScrolledRef.current) {
+                scrollToBottom();
+              }
             }
           }
 
@@ -820,6 +1028,8 @@ export const ComparisonChat = memo(function ComparisonChat({
     }
 
     setCrossExamResponses(responses);
+    setCompletedStages(prev => new Set([...prev, "cross-examining"]));
+    setStageContent(prev => ({ ...prev, "cross-examining": responses }));
     
     if (sessionId) {
       updateSession(sessionId, { crossExaminations: responses });
@@ -828,12 +1038,15 @@ export const ComparisonChat = memo(function ComparisonChat({
     await runReferee(comparisonPlan, advocateArgs, responses);
   }, [sessionId, maxParallelism, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, scrollToBottom]);
 
+
   const runReferee = useCallback(async (
     comparisonPlan: ComparisonPlan,
     advocateArgs: AdvocateResponse[],
     crossExams: CrossExamineResponse[]
   ) => {
     setPhase("refereeing");
+    isStreamingRef.current = true;
+    userHasScrolledRef.current = false;
     
     if (sessionId) {
       updateSession(sessionId, { status: "refereeing" });
@@ -876,7 +1089,10 @@ export const ComparisonChat = memo(function ComparisonChat({
           const chunk = decoder.decode(value, { stream: true });
           fullContent += chunk;
           updateMessage(msgId, `## Final Verdict\n\n${fullContent}`);
-          scrollToBottom();
+          
+          if (!userHasScrolledRef.current) {
+            scrollToBottom();
+          }
         }
       }
 
@@ -893,7 +1109,10 @@ export const ComparisonChat = memo(function ComparisonChat({
       };
 
       setRefereeResponse(result);
+      setCompletedStages(prev => new Set([...prev, "refereeing"]));
+      setStageContent(prev => ({ ...prev, refereeing: fullContent }));
       setPhase("complete");
+      isStreamingRef.current = false;
       
       if (sessionId) {
         updateSession(sessionId, { result, status: "complete" });
@@ -902,6 +1121,7 @@ export const ComparisonChat = memo(function ComparisonChat({
       handleError(err, "Referee");
     } finally {
       setIsLoading(false);
+      isStreamingRef.current = false;
     }
   }, [sessionId, geminiApiKey, exaApiKey, addMessage, updateMessage, updateSession, handleError, scrollToBottom]);
 
@@ -910,6 +1130,7 @@ export const ComparisonChat = memo(function ComparisonChat({
     setSessionId(newSessionId);
     setCurrentSession(newSessionId);
     
+    // Reset all state
     setMessages([]);
     setPlan(null);
     setClarifications([]);
@@ -918,6 +1139,14 @@ export const ComparisonChat = memo(function ComparisonChat({
     setCrossExamResponses([]);
     setRefereeResponse(null);
     setError(null);
+    setCompletedStages(new Set());
+    setActiveViewStage(null);
+    setStageContent({
+      planning: null,
+      advocating: [],
+      "cross-examining": [],
+      refereeing: null,
+    });
     userHasScrolledRef.current = false;
 
     addMessage({ role: "user", content: query });
@@ -958,6 +1187,14 @@ export const ComparisonChat = memo(function ComparisonChat({
     setRefereeResponse(null);
     setError(null);
     setIsLoading(false);
+    setCompletedStages(new Set());
+    setActiveViewStage(null);
+    setStageContent({
+      planning: null,
+      advocating: [],
+      "cross-examining": [],
+      refereeing: null,
+    });
     userHasScrolledRef.current = false;
   }, [setCurrentSession]);
 
@@ -965,9 +1202,14 @@ export const ComparisonChat = memo(function ComparisonChat({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Phase indicator */}
+      {/* Phase indicator with clickable stages */}
       {phase !== "input" && phase !== "error" && (
-        <PhaseIndicator phase={phase} />
+        <PhaseIndicator 
+          phase={phase} 
+          completedStages={completedStages}
+          activeViewStage={activeViewStage}
+          onStageClick={handleStageClick}
+        />
       )}
 
       {/* Messages area */}
@@ -978,7 +1220,18 @@ export const ComparisonChat = memo(function ComparisonChat({
       >
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
           {/* Welcome message */}
-          {messages.length === 0 && phase === "input" && <WelcomeScreen />}
+          {messages.length === 0 && phase === "input" && (
+            <WelcomeScreen onExampleClick={(example) => setInputValue(example)} />
+          )}
+
+          {/* Stage content viewer - shows when user clicks a stage */}
+          {activeViewStage && (
+            <StageContentViewer
+              stage={activeViewStage}
+              stageContent={stageContent}
+              onClose={handleCloseStageViewer}
+            />
+          )}
 
           {/* Chat messages */}
           {messages.map((message) => (
@@ -1050,6 +1303,8 @@ export const ComparisonChat = memo(function ComparisonChat({
                   ? "Please answer the questions above..."
                   : "Compare technologies... (e.g., 'React vs Vue vs Angular')"
               }
+              value={inputValue}
+              onChange={setInputValue}
             />
           )}
         </div>
