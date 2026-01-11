@@ -1,0 +1,54 @@
+flowchart TD
+    subgraph Client["Client (React + Zustand)"]
+        UI[Comparison Chat UI]
+        Settings[Settings + API Keys]
+        History[Session History]
+        Renderer[Markdown + Custom Blocks]
+    end
+
+    subgraph API["Next.js API Routes"]
+        Planner["/api/planner"]
+        Advocate["/api/advocate"]
+        CrossExam["/api/cross-examine"]
+        Referee["/api/referee"]
+    end
+
+    subgraph Agents["Agent Roles"]
+        PA[Planner Agent]
+        AA[Advocate Agents]
+        CA[Cross-Examiner Agents]
+        RA[Referee Agent]
+    end
+
+    subgraph Tools["Tools"]
+        Exa[Exa Search Tool]
+    end
+
+    subgraph External["External Services"]
+        Gemini[Google Gemini API]
+        ExaAPI[Exa Search API]
+    end
+
+    UI -->|Query| Planner
+    Planner --> PA
+    PA -->|Plan JSON| UI
+
+    UI -->|Plan + Option| Advocate
+    Advocate --> AA
+    AA -->|Arguments| UI
+
+    UI -->|Args + Opponents| CrossExam
+    CrossExam --> CA
+    CA -->|Challenges| UI
+
+    UI -->|Plan + All Evidence| Referee
+    Referee --> RA
+    RA -->|Verdict| UI
+
+    PA & AA & CA & RA --> Exa
+    Exa --> ExaAPI
+    PA & AA & CA & RA --> Gemini
+
+    UI <--> Settings
+    UI <--> History
+    UI --> Renderer
